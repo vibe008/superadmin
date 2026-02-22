@@ -18,7 +18,7 @@ app.use(cors({
     origin: [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://staffmanagement-superadmin.vercel.app/"
+        "https://staffmanagement-superadmin.vercel.app"
     ],
     credentials: true
 }));
