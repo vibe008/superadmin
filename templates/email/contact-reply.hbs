@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reply to your support request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-bottom: 3px solid #007bff;
+            margin-bottom: 20px;
+        }
+        .header h2 {
+            margin: 0;
+            color: #007bff;
+        }
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .original-message {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #6c757d;
+            margin: 20px 0;
+            font-style: italic;
+        }
+        .reply-message {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 12px;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .attachment-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Reply to Your Support Request</h2>
+    </div>
+    
+    <div class="content">
+        <p>Dear <strong>{{fullName}}</strong>,</p>
+        
+        <p>Thank you for contacting our support team. We have reviewed your request and here's our response:</p>
+        
+        <div class="original-message">
+            <strong>Your original message:</strong><br>
+            {{originalMessage}}
+        </div>
+        
+        <div class="reply-message">
+            <strong>Our response ({{staffName}}):</strong><br>
+            {{replyMessage}}
+        </div>
+        
+        {{#if hasAttachments}}
+        <div class="attachment-info">
+            <strong>📎 Attachments included:</strong>
+            <ul>
+                {{#each attachments}}
+                <li>{{this.fileName}} ({{this.fileSize}})</li>
+                {{/each}}
+            </ul>
+            <p><small>You can find the attachments in your email or download them from the links below:</small></p>
+            <ul>
+                {{#each attachments}}
+                <li><a href="{{this.url}}">{{this.fileName}}</a></li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+        
+        <p>If you have any further questions, please don't hesitate to reply to this email or create a new support request.</p>
+        
+        <a href="{{ticketUrl}}" class="btn">View Your Ticket</a>
+        
+        <p>Best regards,<br>
+        <strong>{{staffName}}</strong><br>
+        Support Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated response to your support request. Please do not reply directly to this email.</p>
+        <p>&copy; {{year}} Your Company Name. All rights reserved.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+/*
+  Warnings:
+
+  - The values [SUPPORT_AGENT,TASK_ASSIGNER] on the enum `RoleEnum` will be removed. If these variants are still used in the database, this will fail.
+
+*/
+-- CreateEnum
+CREATE TYPE "DepartmentEnum" AS ENUM ('ADMIN', 'SUPPORT', 'PRODUCTION', 'TECH_IT', 'SALES_MARKETING', 'FINANCE', 'INVENTORY');
+
+-- CreateEnum
+CREATE TYPE "SubDepartmentEnum" AS ENUM ('OPERATIONS_ADMIN', 'ACCOUNTS_ADMIN', 'LEGAL_ADMIN', 'HR_ADMIN', 'SUPPORT_AGENT', 'TECH_SUPPORT', 'TASK_ASSIGNER', 'SUPPORT_LEAD_QA', 'PRODUCTION_EXECUTIVE', 'PRODUCTION_LEAD', 'QUALITY_CHECKER', 'DISPATCH_DELIVERY', 'SYSTEM_ADMIN', 'DEVELOPER', 'IT_SUPPORT', 'HARDWARE_NETWORK_TECH', 'SALES_EXECUTIVE', 'SALES_MANAGER', 'TELECALLER', 'MARKETING_EXECUTIVE', 'DIGITAL_SOCIAL_MEDIA', 'ACCOUNTANT', 'BILLING_EXECUTIVE', 'PAYMENTS_COLLECTIONS', 'FINANCE_MANAGER', 'PURCHASE_EXECUTIVE', 'VENDOR_MANAGER', 'WAREHOUSE_INVENTORY');
+
+-- AlterEnum
+ALTER TYPE "PermissionEnum" ADD VALUE 'VIEW_CUSTOMERS';
+
+-- AlterEnum
+BEGIN;
+CREATE TYPE "RoleEnum_new" AS ENUM ('SUPERADMIN', 'ADMIN', 'SUPPORT', 'PRODUCTION', 'TECH_IT', 'SALES_MARKETING', 'FINANCE', 'INVENTORY');
+ALTER TABLE "Staff" ALTER COLUMN "role" TYPE "RoleEnum_new" USING ("role"::text::"RoleEnum_new");
+ALTER TYPE "RoleEnum" RENAME TO "RoleEnum_old";
+ALTER TYPE "RoleEnum_new" RENAME TO "RoleEnum";
+DROP TYPE "public"."RoleEnum_old";
+COMMIT;
+
+-- AlterTable
+ALTER TABLE "Staff" ADD COLUMN     "departmentId" TEXT,
+ADD COLUMN     "isSuperAdmin" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "subDepartmentId" TEXT;
+
+-- CreateTable
+CREATE TABLE "Department" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Department_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SubDepartment" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "departmentId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SubDepartment_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "SubDepartment" ADD CONSTRAINT "SubDepartment_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -1,0 +1,483 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ChatUser {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String  
+  code      String
+  type      String
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+  @@unique([email, code])
+}
+
+model Staff {
+  id               String    @id @default(uuid())
+  formNumber       String?
+  registrationDate DateTime?
+
+  // Personal
+  name                   String
+  email                  String    @unique
+  mobileNumber           String?
+  dateOfBirth            DateTime?
+  adharNumber            String?
+  bloodGroup             String?
+  healthIssue            Boolean   @default(false)
+  healthIssueDescription String?
+  maritalStatus          String?
+  haveVehicle            Boolean   @default(false)
+  vehicleNumber          String?
+  fatherName             String?
+  motherName             String?
+
+  // Auth 
+  password String?
+  role     RoleEnum?
+
+  staffPermissions StaffPermission[]
+  isSuperAdmin     Boolean           @default(false)
+
+  createdAt DateTime?
+
+  assignedTickets Ticket[] @relation("AssignedTickets")
+  createdTickets  Ticket[] @relation("CreatedTickets")
+
+  // Department Relations
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  subDepartmentId String?
+  subDepartment   SubDepartment? @relation(fields: [subDepartmentId], references: [id])
+
+  // Designation Relation (replaces the old designation String field)
+  designationId String?
+  designation   Designation? @relation(fields: [designationId], references: [id])
+
+  registrationType String    @default("NEW") // "NEW" or "PAST"
+  movedToPastAt    DateTime?
+
+  contactSupports ContactSupport[]
+  lockedContacts  ContactSupport[] @relation("LockedContacts")
+
+  // Relations
+  assignedTasks   Task[]           @relation("AssignedTasks")
+  createdTasks    Task[]           @relation("CreatedTasks")
+  assignedByTasks Task[]           @relation("AssignedByTasks")
+  taskUpdates     TaskUpdate[]
+  addresses       StaffAddress[]
+  experiences     WorkExperience[]
+  bankDetails     BankDetail?
+  documents       StaffDocument?
+
+  sessions       StaffSession[]
+  contactReplies ContactReply[]
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  name      String   @unique // VIEW_CHAT
+  label     String // View Chat
+  group     String // SUPPORT, TASKS, TICKETS
+  createdAt DateTime @default(now())
+
+  staffPermissions StaffPermission[]
+}
+
+model StaffPermission {
+  id           String @id @default(uuid())
+  staffId      String
+  permissionId String
+
+  staff      Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, permissionId])
+}
+
+model StaffAddress {
+  id      String      @id @default(uuid())
+  staffId String
+  type    AddressType
+
+  pincode     String?
+  country     String?
+  state       String?
+  district    String?
+  fullAddress String?
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model WorkExperience {
+  id            String    @id @default(uuid())
+  staffId       String
+  companyName   String
+  contactNumber String?
+  designation   String?
+  startDate     DateTime?
+  endDate       DateTime?
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model BankDetail {
+  id                String  @id @default(uuid())
+  staffId           String  @unique
+  bankName          String?
+  accountHolderName String?
+  accountNumber     String?
+  ifscCode          String?
+
+  staff Staff @relation(fields: [staffId], references: [id])
+}
+
+model StaffDocument {
+  id      String @id @default(uuid())
+  staffId String @unique
+
+  adharFront       String?
+  adharBack        String?
+  signature        String?
+  photo            String?
+  experienceLetter String?
+  bankStatement    String?
+  otherDocuments   String?
+
+  staff Staff @relation(fields: [staffId], references: [id])
+}
+
+model StaffSession {
+  id         String    @id @default(uuid())
+  staffId    String
+  staff      Staff     @relation(fields: [staffId], references: [id])
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  duration   Int? // Duration in seconds
+  status     String    @default("ACTIVE") // ACTIVE, COMPLETED
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([staffId])
+  @@index([status])
+  @@index([loginTime])
+}
+
+model Department {
+  id             String          @id @default(uuid())
+  name           String          @unique
+  createdAt      DateTime        @default(now())
+  assignedTasks  Task[]          @relation("DepartmentTasks")
+  // Relations
+  subDepartments SubDepartment[]
+  staff          Staff[]
+}
+
+model SubDepartment {
+  id           String   @id @default(uuid())
+  name         String
+  departmentId String
+  createdAt    DateTime @default(now())
+
+  assignedTasks Task[]        @relation("SubDepartmentTasks")
+  // Relations
+  department    Department    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  designations  Designation[]
+  staff         Staff[]
+
+  @@unique([name, departmentId])
+}
+
+model Designation {
+  id              String   @id @default(uuid())
+  title           String
+  subDepartmentId String
+  createdAt       DateTime @default(now())
+
+  // Relations
+  subDepartment SubDepartment @relation(fields: [subDepartmentId], references: [id], onDelete: Cascade)
+  staff         Staff[]
+  tasks         Task[]
+
+  @@unique([title, subDepartmentId])
+}
+
+model Task {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus    @default(PENDING)
+  priority    TaskPriority? @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  completedAt DateTime?
+  startDate   DateTime?
+  ticketId    String?
+  ticket      Ticket?       @relation(fields: [ticketId], references: [id])
+
+  source       TaskSource @default(INTERNAL)
+  // Assignment options (one of these will be filled)
+  assignedToId String? // Direct assignment to staff
+  assignedTo   Staff?     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+
+  assignedToDepartmentId String? // Assign to entire department
+  assignedToDepartment   Department? @relation("DepartmentTasks", fields: [assignedToDepartmentId], references: [id])
+
+  assignedToSubDepartmentId String? // Assign to entire subdepartment
+  assignedToSubDepartment   SubDepartment? @relation("SubDepartmentTasks", fields: [assignedToSubDepartmentId], references: [id])
+
+  assignedToDesignationId String? // Assign to entire designation
+  assignedToDesignation   Designation? @relation(fields: [assignedToDesignationId], references: [id])
+
+  assignedToRole String? // Using String instead of RoleEnum to avoid enum issues
+
+  // Who created/assigned the task
+  createdById String
+  createdBy   Staff  @relation("CreatedTasks", fields: [createdById], references: [id])
+
+  assignedById String? // Who assigned the task (if different from creator)
+  assignedBy   Staff?  @relation("AssignedByTasks", fields: [assignedById], references: [id])
+
+  // Task updates and notes
+  taskUpdates TaskUpdate[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([assignedToDepartmentId])
+  @@index([assignedToSubDepartmentId])
+  @@index([assignedToDesignationId])
+  @@index([assignedToRole])
+  @@index([createdById])
+  @@index([dueDate])
+  @@index([ticketId])
+  @@index([source])
+}
+
+model TaskUpdate {
+  id      String @id @default(uuid())
+  taskId  String
+  task    Task   @relation(fields: [taskId], references: [id])
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id])
+
+  previousStatus String? // Using String instead of TaskStatus enum
+  newStatus      String? // Using String instead of TaskStatus enum
+  note           String? // Work note/update description
+  attachments    String[] // URLs or paths to attachments
+
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id           String @id @default(uuid())
+  ticketNumber Int    @default(autoincrement())
+
+  chatSessionId String? // from chat backend
+  chatUserId    String?
+  chatUser      ChatUser? @relation(fields: [chatUserId], references: [id])
+
+  sourceContactId String?
+  sourceContact   ContactSupport? @relation(fields: [sourceContactId], references: [id])
+
+  source TicketSource @default(CHAT)
+
+  userSource String?
+  userType   String?
+
+  createdById String
+  createdBy   Staff  @relation("CreatedTickets", fields: [createdById], references: [id])
+
+  subject     String
+  description String?
+
+  status   TicketStatus @default(UNASSIGNED)
+  priority TaskPriority @default(MEDIUM)
+
+  assignedToId String?
+  assignedTo   Staff?  @relation("AssignedTickets", fields: [assignedToId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+
+  tasks Task[]
+
+  @@index([status])
+  @@index([chatSessionId])
+  @@index([assignedToId])
+}
+
+model ContactSupport {
+  id          String   @id @default(uuid())
+  fullName    String
+  email       String
+  subject     String
+  message     String
+  attachments Json?
+  status      String   @default("PENDING") // PENDING, REPLIED, CLOSED, CONVERTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  source      String?
+  type        String?
+
+  tickets Ticket[]
+
+  // Track ticket conversion
+  convertedById String? // Staff who created ticket
+  convertedBy   Staff?    @relation(fields: [convertedById], references: [id])
+  convertedAt   DateTime? // When ticket was created
+
+  // Lock mechanism
+  lockedById     String? // Staff who locked this contact
+  lockedBy       Staff?         @relation("LockedContacts", fields: [lockedById], references: [id])
+  lockedAt       DateTime? // When it was locked
+  lockExpiresAt  DateTime? // When lock expires (10 minutes)
+  contactReplies ContactReply[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([lockExpiresAt])
+}
+
+model ContactReply {
+  id        String         @id @default(uuid())
+  contactId String
+  contact   ContactSupport @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id])
+
+  message     String  @db.Text
+  attachments Json? // Store attachments as JSON array
+  emailSent   Boolean @default(true) // Whether email was sent successfully
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contactId])
+  @@index([staffId])
+  @@index([createdAt])
+}
+
+enum DepartmentEnum {
+  ADMIN
+  SUPPORT
+  PRODUCTION
+  TECH_IT
+  SALES_MARKETING
+  FINANCE
+  INVENTORY
+}
+
+enum SubDepartmentEnum {
+  OPERATIONS_ADMIN
+  ACCOUNTS_ADMIN
+  LEGAL_ADMIN
+  HR_ADMIN
+  SUPPORT_AGENT
+  TECH_SUPPORT
+  TASK_ASSIGNER
+  SUPPORT_LEAD_QA
+  PRODUCTION_EXECUTIVE
+  PRODUCTION_LEAD
+  QUALITY_CHECKER
+  DISPATCH_DELIVERY
+  SYSTEM_ADMIN
+  DEVELOPER
+  IT_SUPPORT
+  HARDWARE_NETWORK_TECH
+  SALES_EXECUTIVE
+  SALES_MANAGER
+  TELECALLER
+  MARKETING_EXECUTIVE
+  DIGITAL_SOCIAL_MEDIA
+  ACCOUNTANT
+  BILLING_EXECUTIVE
+  PAYMENTS_COLLECTIONS
+  FINANCE_MANAGER
+  PURCHASE_EXECUTIVE
+  VENDOR_MANAGER
+  WAREHOUSE_INVENTORY
+}
+
+enum RoleEnum {
+  SUPERADMIN
+  SUPPORT
+  TASK_ASSIGNER
+  DEVELOPER
+}
+
+enum PermissionEnum {
+  VIEW_TICKETS
+  CREATE_TICKETS
+  UPDATE_TICKETS
+  VIEW_CHAT
+  RESPOND_CHAT
+  VIEW_TASKS
+  CREATE_TASKS
+  ASSIGN_TASKS
+  UPDATE_TASK_STATUS
+  UPDATE_TASK
+  DELETE_TASK
+  MANAGE_USERS
+  VIEW_REPORTS
+  VIEW_CUSTOMERS
+  CONTACT_SUPPORT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+  OVERDUE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  UNASSIGNED
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TaskSource {
+  INTERNAL
+  TICKET
+}
+
+enum TicketSource {
+  CHAT
+  CONTACT
+}
+
+enum AddressType {
+  CURRENT
+  PERMANENT
+}
