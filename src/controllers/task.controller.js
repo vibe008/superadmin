@@ -1,3 +1,4 @@
+const { TicketStatus } = require("@prisma/client");
 const prisma = require("../config/db");
 const { TaskStatus, TaskPriority, TaskSource } = require("../utils/enums");
 
@@ -29,19 +30,19 @@ const getAssignmentDescription = (assignment) => {
 // ==================== CREATE TASK ====================
 exports.createTask = async (req, res) => {
     try {
-        const { 
-            title, 
-            description, 
+        const {
+            title,
+            description,
             startDate,
-            dueDate, 
+            dueDate,
             priority,
             assignedToId,
             assignedToDepartmentId,
             assignedToSubDepartmentId,
             assignedToDesignationId,
-            assignedToRole 
+            assignedToRole
         } = req.body;
-        
+
         const currentUser = req.user;
 
         if (!currentUser) {
@@ -178,52 +179,78 @@ exports.convertTicketToTask = async (req, res) => {
             return res.status(400).json({ message: error.message });
         }
 
-        // Create task from ticket
-        const task = await prisma.task.create({
-            data: {
-                title: title || `Task for Ticket #${ticket.ticketNumber}: ${ticket.subject}`,
-                description: description || ticket.description || `Task created from ticket #${ticket.ticketNumber}`,
-                startDate: startDate ? new Date(startDate) : null,
-                dueDate: dueDate ? new Date(dueDate) : null,
-                priority: priority || ticket.priority || TaskPriority.MEDIUM,
-                source: TaskSource.TICKET,
-                ticketId: ticket.id,
-                assignedToId,
-                assignedToDepartmentId,
-                assignedToSubDepartmentId,
-                assignedToDesignationId,
-                assignedToRole,
-                createdById: currentUser.id,
-                assignedById: currentUser.id,
-                status: TaskStatus.PENDING
-            },
+        // Create task from ticket and update ticket status in a transaction
+        const result = await prisma.$transaction(async (prisma) => {
+            // Create the task
+            const task = await prisma.task.create({
+                data: {
+                    title: title || `Task for Ticket #${ticket.ticketNumber}: ${ticket.subject}`,
+                    description: description || ticket.description || `Task created from ticket #${ticket.ticketNumber}`,
+                    startDate: startDate ? new Date(startDate) : null,
+                    dueDate: dueDate ? new Date(dueDate) : null,
+                    priority: priority || ticket.priority || TaskPriority.MEDIUM,
+                    source: TaskSource.TICKET,
+                    ticketId: ticket.id,
+                    assignedToId,
+                    assignedToDepartmentId,
+                    assignedToSubDepartmentId,
+                    assignedToDesignationId,
+                    assignedToRole,
+                    createdById: currentUser.id,
+                    assignedById: currentUser.id,
+                    status: TaskStatus.PENDING
+                }
+            });
+
+            // Update ticket status to IN_PROGRESS
+            const updatedTicket = await prisma.ticket.update({
+                where: { id: ticketId },
+                data: {
+                    status: TicketStatus.IN_PROGRESS,
+                    updatedAt: new Date()
+                }
+            });
+
+            // Create initial task update
+            await prisma.taskUpdate.create({
+                data: {
+                    taskId: task.id,
+                    staffId: currentUser.id,
+                    note: `Task created from Ticket #${ticket.ticketNumber} and assigned to ${getAssignmentDescription({
+                        assignedToId,
+                        assignedToDepartmentId,
+                        assignedToSubDepartmentId,
+                        assignedToDesignationId,
+                        assignedToRole
+                    })}`,
+                    newStatus: TaskStatus.PENDING
+                }
+            });
+
+            return { task, updatedTicket };
+        });
+
+        // Fetch the complete task with all relations for response
+        const taskWithRelations = await prisma.task.findUnique({
+            where: { id: result.task.id },
             include: {
                 createdBy: { select: { id: true, name: true, email: true, role: true } },
                 assignedTo: { select: { id: true, name: true, email: true, role: true } },
                 assignedToDepartment: { select: { id: true, name: true } },
                 assignedToSubDepartment: { select: { id: true, name: true } },
                 assignedToDesignation: { select: { id: true, title: true } },
-                ticket: { include: { chatUser: true } }
+                ticket: {
+                    include: {
+                        chatUser: true
+                    }
+                }
             }
         });
 
-        // Create initial task update
-        await prisma.taskUpdate.create({
-            data: {
-                taskId: task.id,
-                staffId: currentUser.id,
-                note: `Task created from Ticket #${ticket.ticketNumber} and assigned to ${getAssignmentDescription({
-                    assignedToId,
-                    assignedToDepartmentId,
-                    assignedToSubDepartmentId,
-                    assignedToDesignationId,
-                    assignedToRole
-                })}`,
-                newStatus: TaskStatus.PENDING
-            }
+        res.status(201).json({
+            message: "Task created successfully from ticket and ticket status updated to IN_PROGRESS",
+            task: taskWithRelations
         });
-
-        res.status(201).json({ message: "Task created successfully from ticket", task });
 
     } catch (error) {
         console.error("Error in convertTicketToTask:", error);
@@ -242,7 +269,7 @@ exports.assignTask = async (req, res) => {
             assignedToDesignationId,
             assignedToRole
         } = req.body;
-        
+
         const currentUser = req.user;
 
         if (!currentUser) {
@@ -467,19 +494,19 @@ exports.deleteTask = async (req, res) => {
 // ==================== GET ALL TASKS ====================
 exports.getAllTasks = async (req, res) => {
     try {
-        const { 
-            status, 
-            priority, 
-            departmentId, 
+        const {
+            status,
+            priority,
+            departmentId,
             subDepartmentId,
             designationId,
-            assignedToId, 
+            assignedToId,
             source,
             ticketId,
-            page = 1, 
-            limit = 10 
+            page = 1,
+            limit = 10
         } = req.query;
-        
+
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         // Build filter

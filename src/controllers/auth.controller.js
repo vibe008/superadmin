@@ -125,20 +125,7 @@ exports.login = async (req, res) => {
     } catch (error) {
       console.error("Chat sync failed:", error.message);
     }
-    console.log("Login Response:", {
-      token,
-      chatToken,
-      user: {
-        id: staff.id,
-        name: staff.name,
-        email: staff.email,
-        role: staff.role,
-        isSuperAdmin: staff.isSuperAdmin,
-        departmentId: staff.departmentId,
-        subDepartmentId: staff.subDepartmentId,
-        permissions
-      }
-    });
+
     // 🔹 Final Response
     res.json({
       success: true,
@@ -165,8 +152,7 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    const staffId = req.user.id;  // Fixed: use 'id' instead of 'userId'
-    console.log("staffId", staffId);
+    const staffId = req.user.id; 
 
     const activeSession = await prisma.staffSession.findFirst({
       where: {
@@ -209,7 +195,6 @@ exports.logout = async (req, res) => {
         console.error('Chat backend error:', errorText);
       } else {
         const responseData = await chatResponse.json();
-        console.log('Chat backend response:', responseData);
       }
     } catch (error) {
       console.error('Failed to notify chat backend:', error.message);
@@ -243,9 +228,8 @@ exports.getStaffStatus = async (req, res) => {
           }
         }
       );
-      const data = await response.json();   // ✅ read once
+      const data = await response.json();   
 
-      console.log("response", data);
       if (response.ok) {
         chatStatus = data;
       }

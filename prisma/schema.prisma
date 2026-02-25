@@ -13,11 +13,12 @@ datasource db {
 model ChatUser {
   id        String   @id @default(cuid())
   name      String?
-  email     String  
+  email     String?
   code      String
   type      String
   createdAt DateTime @default(now())
   tickets   Ticket[]
+  isGuest Boolean  @default(false)
   @@unique([email, code])
 }
 
